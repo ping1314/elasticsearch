@@ -63,9 +63,8 @@ class BuildPlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
         if (project.pluginManager.hasPlugin('elasticsearch.standalone-rest-test')) {
-              throw new InvalidUserDataException('elasticsearch.standalone-test, '
-                + 'elasticearch.standalone-rest-test, and elasticsearch.build '
-                + 'are mutually exclusive')
+              throw new InvalidUserDataException("elasticsearch.standalone-testelasticearch.standalone-rest-test " +
+                      "and elasticsearch.build are mutually exclusive")
         }
         project.pluginManager.apply('java')
         project.pluginManager.apply('carrotsearch.randomized-testing')
@@ -171,7 +170,8 @@ class BuildPlugin implements Plugin<Project> {
     }
 
     private static String findCompilerJavaHome() {
-        final String javaHome = System.getenv('JAVA_HOME')
+        // final String javaHome = System.getenv('JAVA_HOME')
+        final String javaHome = "/Library/Java/JavaVirtualMachines/jdk-10.0.2.jdk/Contents/Home/"
         if (javaHome == null) {
             if (System.getProperty("idea.active") != null || System.getProperty("eclipse.launcher") != null) {
                 // IntelliJ does not set JAVA_HOME, so we use the JDK that Gradle was run with

@@ -18,8 +18,8 @@
  */
 
 
-import com.carrotsearch.gradle.junit4.RandomizedTestingTask
-import org.elasticsearch.gradle.BuildPlugin
+import com.carrotsearch.gradle.junit4.*;
+import org.elasticsearch.gradle.*;
 
 apply plugin: 'elasticsearch.build'
 apply plugin: 'nebula.optional-base'
@@ -63,7 +63,7 @@ dependencies {
 
   compile "org.elasticsearch:elasticsearch-core:${version}"
 
-  compileOnly project(':libs:plugin-classloader')
+  compile project(':libs:plugin-classloader')
   testRuntime project(':libs:plugin-classloader')
 
   // lucene
