@@ -121,6 +121,7 @@ public abstract class Command implements Closeable {
             terminal.setVerbosity(Terminal.Verbosity.NORMAL);
         }
 
+        // 获取传参，执行command
         execute(terminal, options);
     }
 

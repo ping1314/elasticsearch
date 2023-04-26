@@ -83,6 +83,7 @@ public abstract class EnvironmentAwareCommand extends Command {
         putSystemPropertyIfSettingIsMissing(settings, "path.home", "es.path.home");
         putSystemPropertyIfSettingIsMissing(settings, "path.logs", "es.path.logs");
 
+        // 根据配置文件启动服务
         execute(terminal, options, createEnv(terminal, settings));
     }
 

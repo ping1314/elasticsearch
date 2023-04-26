@@ -278,6 +278,7 @@ public class Node implements Closeable {
                 logger.info("node name [{}], node ID [{}]", nodeName, nodeId);
             }
 
+            // 打印jvm信息
             final JvmInfo jvmInfo = JvmInfo.jvmInfo();
             logger.info(
                 "version[{}], pid[{}], build[{}/{}], OS[{}/{}/{}], JVM[{}/{}/{}/{}]",
@@ -300,6 +301,7 @@ public class Node implements Closeable {
                     environment.configFile(), Arrays.toString(environment.dataFiles()), environment.logsFile(), environment.pluginsFile());
             }
 
+            // 初始化各类服务，以及他们相关的依赖
             this.pluginsService = new PluginsService(tmpSettings, environment.configFile(), environment.modulesFile(), environment.pluginsFile(), classpathPlugins);
             this.settings = pluginsService.updatedSettings();
             localNodeFactory = new LocalNodeFactory(settings, nodeEnvironment.nodeId());
@@ -461,6 +463,7 @@ public class Node implements Closeable {
                 threadPool, scriptModule.getScriptService(), bigArrays, searchModule.getFetchPhase(),
                 responseCollectorService);
 
+            // google guice注入各种框架，然后启动
             modules.add(b -> {
                     b.bind(Node.class).toInstance(this);
                     b.bind(NodeService.class).toInstance(nodeService);
@@ -593,6 +596,7 @@ public class Node implements Closeable {
             return this;
         }
 
+        // LifecycleComponent各个组件继承了 AbstractLifecycleComponent, start启动各个服务, start方法会调用组件的doStart方法
         Logger logger = Loggers.getLogger(Node.class, NODE_NAME_SETTING.get(settings));
         logger.info("starting ...");
         pluginLifecycleComponents.forEach(LifecycleComponent::start);
@@ -620,6 +624,7 @@ public class Node implements Closeable {
         // Start the transport service now so the publish address will be added to the local disco node in ClusterService
         TransportService transportService = injector.getInstance(TransportService.class);
         transportService.getTaskManager().setTaskResultsService(injector.getInstance(TaskResultsService.class));
+        // 节点间数据同步网络服务
         transportService.start();
         assert localNodeFactory.getNode() != null;
         assert transportService.getLocalNode().equals(localNodeFactory.getNode())
@@ -645,12 +650,18 @@ public class Node implements Closeable {
 
         clusterService.addStateApplier(transportService.getTaskManager());
         // start after transport service so the local disco is known
+        //在集群服务之前启动，以便它可以在ClusterApplierService上设置初始状态
+        // 通过guice来作为ioc管理的注入
+        // 调用AbstractLifecycleComponent#start()方法进行监听，同时在该start()方法中调用ZenDiscovery#doStart()方法进行真正工作
+        // 这里用到的模板方法的设计模式，在Spring中很多地方都是这样使用的
         discovery.start(); // start before cluster service so that it can set initial state on ClusterApplierService
         clusterService.start();
         assert clusterService.localNode().equals(localNodeFactory.getNode())
             : "clusterService has a different local node than the factory provided";
         transportService.acceptIncomingRequests();
+        // 核心方法
         discovery.startInitialJoin();
+
         // tribe nodes don't have a master so we shouldn't register an observer         s
         final TimeValue initialStateTimeout = DiscoverySettings.INITIAL_STATE_TIMEOUT_SETTING.get(settings);
         if (initialStateTimeout.millis() > 0) {

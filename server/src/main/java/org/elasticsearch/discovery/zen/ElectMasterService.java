@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+
 public class ElectMasterService extends AbstractComponent {
 
     public static final Setting<Integer> DISCOVERY_ZEN_MINIMUM_MASTER_NODES_SETTING =
@@ -89,7 +90,11 @@ public class ElectMasterService extends AbstractComponent {
         public static int compare(MasterCandidate c1, MasterCandidate c2) {
             // we explicitly swap c1 and c2 here. the code expects "better" is lower in a sorted
             // list, so if c2 has a higher cluster state version, it needs to come first.
+            /** clusterStateVersion越大，优先级越高，这是为了保证新Master拥有最新的clusterState（集群的元数据）
+             * Master当选之后以此clusterState为基础进行更新。clusterStateVersion是long类型的版本号。
+             */
             int ret = Long.compare(c2.clusterStateVersion, c1.clusterStateVersion);
+            // 如果版本号相同，则比较节点ID
             if (ret == 0) {
                 ret = compareNodes(c1.getNode(), c2.getNode());
             }
@@ -146,6 +151,7 @@ public class ElectMasterService extends AbstractComponent {
 
     /** selects the best active master to join, where multiple are discovered */
     public DiscoveryNode tieBreakActiveMasters(Collection<DiscoveryNode> activeMasters) {
+        //从已知的Master节点中选择一个最小值作为新的主
         return activeMasters.stream().min(ElectMasterService::compareNodes).get();
     }
 

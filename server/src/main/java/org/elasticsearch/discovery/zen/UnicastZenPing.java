@@ -210,8 +210,10 @@ public class UnicastZenPing extends AbstractComponent implements ZenPing {
         final List<Callable<TransportAddress[]>> callables =
             hosts
                 .stream()
+                // 地址列表通过TransportService构造
                 .map(hn -> (Callable<TransportAddress[]>) () -> transportService.addressesFromString(hn, limitPortCounts))
                 .collect(Collectors.toList());
+        // 异步Future列表
         final List<Future<TransportAddress[]>> futures =
             executorService.invokeAll(callables, resolveTimeout.nanos(), TimeUnit.NANOSECONDS);
         final List<DiscoveryNode> discoveryNodes = new ArrayList<>();
@@ -221,6 +223,9 @@ public class UnicastZenPing extends AbstractComponent implements ZenPing {
         // ExecutorService#invokeAll guarantees that the futures are returned in the iteration order of the tasks so we can associate the
         // hostname with the corresponding task by iterating together
         final Iterator<String> it = hosts.iterator();
+
+        // 循环获取异步结果：就是简单的IP获取，为啥会用异步方式？
+        // 猜猜是因为host中可能配置有域名，怕解析时间过长
         for (final Future<TransportAddress[]> future : futures) {
             final String hostname = it.next();
             if (!future.isCancelled()) {
@@ -294,7 +299,12 @@ public class UnicastZenPing extends AbstractComponent implements ZenPing {
                         final TimeValue scheduleDuration,
                         final TimeValue requestDuration) {
         final List<DiscoveryNode> seedNodes;
+
+        // 1、从配置的discovery.zen.ping.unicast.hosts列表中获取
+        // 2、hostsProvider.buildDynamicNodes()中获取
+        // 3、从本实例最近一次的clusterState的masterNode中获取。
         try {
+           // 从配置的discovery.zen.ping.unicast.hosts列表中获取
             seedNodes = resolveHostsLists(
                 unicastZenPingExecutorService,
                 logger,
@@ -306,18 +316,29 @@ public class UnicastZenPing extends AbstractComponent implements ZenPing {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+        // 通过其他方式添加seedNodes
         seedNodes.addAll(hostsProvider.buildDynamicNodes());
+
+        // 当前节点最近一次的clusterState的masterNode
         final DiscoveryNodes nodes = contextProvider.clusterState().nodes();
         // add all possible master nodes that were active in the last known cluster configuration
+        // 添加已知集群配置中活动的所有可能的主节点
+        // 添加有成为master资格的节点
         for (ObjectCursor<DiscoveryNode> masterNode : nodes.getMasterNodes().values()) {
             seedNodes.add(masterNode.value);
         }
 
+        /**
+         * 拿到seedNodes之后就需要发起连接，这里会构造一个叫PingRound的类来统计
+         * 并且分别会在 scheduleDuration的0, 1/3, 2/3时刻发起一轮sendPing操作
+         */
         final ConnectionProfile connectionProfile =
             ConnectionProfile.buildSingleChannelProfile(TransportRequestOptions.Type.REG, requestDuration, requestDuration);
         final PingingRound pingingRound = new PingingRound(pingingRoundIdGenerator.incrementAndGet(), seedNodes, resultsConsumer,
             nodes.getLocalNode(), connectionProfile);
         activePingingRounds.put(pingingRound.id(), pingingRound);
+
+        // 构造ping发送对象pingSender
         final AbstractRunnable pingSender = new AbstractRunnable() {
             @Override
             public void onFailure(Exception e) {
@@ -325,18 +346,21 @@ public class UnicastZenPing extends AbstractComponent implements ZenPing {
                     logger.warn("unexpected error while pinging", e);
                 }
             }
-
             @Override
             protected void doRun() throws Exception {
+                // 发送sendPings
                 sendPings(requestDuration, pingingRound);
             }
         };
+
+        // 提交到generic线程池：ping的连接不像其他那样由transportService 来保持长连接，而是即建即销的一条连接
         threadPool.generic().execute(pingSender);
         threadPool.schedule(TimeValue.timeValueMillis(scheduleDuration.millis() / 3), ThreadPool.Names.GENERIC, pingSender);
         threadPool.schedule(TimeValue.timeValueMillis(scheduleDuration.millis() / 3 * 2), ThreadPool.Names.GENERIC, pingSender);
         threadPool.schedule(scheduleDuration, ThreadPool.Names.GENERIC, new AbstractRunnable() {
             @Override
             protected void doRun() throws Exception {
+                // 关闭临时连接
                 finishPingingRound(pingingRound);
             }
 

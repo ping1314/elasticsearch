@@ -60,6 +60,7 @@ public class DiscoveryModule {
     public static final Setting<Optional<String>> DISCOVERY_HOSTS_PROVIDER_SETTING =
         new Setting<>("discovery.zen.hosts_provider", (String)null, Optional::ofNullable, Property.NodeScope);
 
+
     private final Discovery discovery;
 
     public DiscoveryModule(Settings settings, ThreadPool threadPool, TransportService transportService,
@@ -80,6 +81,7 @@ public class DiscoveryModule {
                 joinValidators.add(joinValidator);
             }
         }
+
         Optional<String> hostsProviderName = DISCOVERY_HOSTS_PROVIDER_SETTING.get(settings);
         if (hostsProviderName.isPresent()) {
             Supplier<UnicastHostsProvider> hostsProviderSupplier = hostProviders.get(hostsProviderName.get());
@@ -105,6 +107,7 @@ public class DiscoveryModule {
             });
         }
         String discoveryType = DISCOVERY_TYPE_SETTING.get(settings);
+        // 这里是函数式编程的用法
         Supplier<Discovery> discoverySupplier = discoveryTypes.get(discoveryType);
         if (discoverySupplier == null) {
             throw new IllegalArgumentException("Unknown discovery type [" + discoveryType + "]");

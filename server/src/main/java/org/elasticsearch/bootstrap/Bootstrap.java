@@ -176,6 +176,7 @@ final class Bootstrap {
                 BootstrapSettings.CTRLHANDLER_SETTING.get(settings));
 
         // initialize probes before the security manager is installed
+        // 探针
         initializeProbes();
 
         if (addShutdownHook) {
@@ -195,6 +196,7 @@ final class Bootstrap {
 
         try {
             // look for jar hell
+            // 检查类加载的一些问题
             JarHell.checkJarHell();
         } catch (IOException | URISyntaxException e) {
             throw new BootstrapException(e);
@@ -204,12 +206,14 @@ final class Bootstrap {
         IfConfig.logIfNecessary();
 
         // install SM after natives, shutdown hooks, etc.
+        // 安全处理
         try {
             Security.configure(environment, BootstrapSettings.SECURITY_FILTER_BAD_DEFAULTS_SETTING.get(settings));
         } catch (IOException | NoSuchAlgorithmException e) {
             throw new BootstrapException(e);
         }
 
+        // 初始化节点
         node = new Node(environment) {
             @Override
             protected void validateNodeBeforeAcceptingRequests(
@@ -260,6 +264,7 @@ final class Bootstrap {
 
     private void start() throws NodeValidationException {
         node.start();
+        // keepAliveThread 线程是唯一的用户线程，主要保持进程运行
         keepAliveThread.start();
     }
 
@@ -285,6 +290,7 @@ final class Bootstrap {
 
         INSTANCE = new Bootstrap();
 
+        // 安全配置文件
         final SecureSettings keystore = loadSecureSettings(initialEnv);
         final Environment environment = createEnvironment(foreground, pidFile, keystore, initialEnv.settings(), initialEnv.configFile());
         try {
@@ -300,6 +306,7 @@ final class Bootstrap {
             }
         }
 
+        // 如果是后台启动，则不打印日志
         final boolean closeStandardStreams = (foreground == false) || quiet;
         try {
             if (closeStandardStreams) {
@@ -320,6 +327,7 @@ final class Bootstrap {
             Thread.setDefaultUncaughtExceptionHandler(
                 new ElasticsearchUncaughtExceptionHandler(() -> Node.NODE_NAME_SETTING.get(environment.settings())));
 
+            // 初始化节点
             INSTANCE.setup(true, environment);
 
             try {

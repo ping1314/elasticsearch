@@ -75,6 +75,7 @@ public class MembershipAction extends AbstractComponent {
 
         transportService.registerRequestHandler(DISCOVERY_JOIN_ACTION_NAME, JoinRequest::new,
             ThreadPool.Names.GENERIC, new JoinRequestRequestHandler());
+
         transportService.registerRequestHandler(DISCOVERY_JOIN_VALIDATE_ACTION_NAME,
             () -> new ValidateJoinRequest(), ThreadPool.Names.GENERIC,
             new ValidateJoinRequestRequestHandler(transportService::getLocalNode, joinValidators));
@@ -93,6 +94,8 @@ public class MembershipAction extends AbstractComponent {
     }
 
     public void sendJoinRequestBlocking(DiscoveryNode masterNode, DiscoveryNode node, TimeValue timeout) {
+        // 向master发送请求
+        // DISCOVERY_JOIN_ACTION_NAME 响应处理是JoinRequestRequestHandler
         transportService.submitRequest(masterNode, DISCOVERY_JOIN_ACTION_NAME, new JoinRequest(node),
             EmptyTransportResponseHandler.INSTANCE_SAME).txGet(timeout.millis(), TimeUnit.MILLISECONDS);
     }
@@ -130,10 +133,12 @@ public class MembershipAction extends AbstractComponent {
     }
 
 
+    // 处理节点加入master的请求
     private class JoinRequestRequestHandler implements TransportRequestHandler<JoinRequest> {
 
         @Override
         public void messageReceived(final JoinRequest request, final TransportChannel channel) throws Exception {
+            // ZenDiscovery实例化的MembershipListener
             listener.onJoin(request.node, new JoinCallback() {
                 @Override
                 public void onSuccess() {

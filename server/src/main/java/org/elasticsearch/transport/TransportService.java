@@ -210,6 +210,9 @@ public class TransportService extends AbstractLifecycleComponent {
     @Override
     protected void doStart() {
         transport.setTransportService(this);
+        // 建立网络连接
+        // 继承关系Netty4Transport -> TcpTransport  -> Transport
+        // Netty4Transport.doStart()
         transport.start();
 
         if (transport.boundAddress() != null && logger.isInfoEnabled()) {

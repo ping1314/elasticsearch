@@ -57,14 +57,20 @@ public abstract class AbstractLifecycleComponent extends AbstractComponent imple
     @SuppressWarnings({"unchecked"})
     @Override
     public void start() {
+        // ES的生命周期zhuangt:INITIALIZED -&gt; STARTED, STOPPED, CLOSED
+        // 如果不可以启动，直接返回
         if (!lifecycle.canMoveToStarted()) {
             return;
         }
+        // 启动之前循环监听
         for (LifecycleListener listener : listeners) {
             listener.beforeStart();
         }
+        // 调用ZenDiscovery的doStart()方法对一些变量进行初始化工作
         doStart();
+        // 处理状态
         lifecycle.moveToStarted();
+        // 启动之后的监听
         for (LifecycleListener listener : listeners) {
             listener.afterStart();
         }
